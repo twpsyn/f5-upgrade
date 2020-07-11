@@ -1,0 +1,104 @@
+- hosts: all
+  gather_facts: no
+  connection: local
+  collections:
+  - f5networks.f5_modules
+  
+  vars_prompt:
+  - name: f5_username
+    prompt: "Enter F5 Username"
+    private: no
+    default: "{{ lookup('env','USER') }}"
+  - name: f5_password
+    prompt: "Enter F5 Password"
+  
+  tasks: 
+
+  - name: Get Software Volume Information
+    bigip_device_info:
+      gather_subset:
+        - software-volumes
+      provider: "{{ provider }}"
+    register: sv
+  
+  - name: Get Current Version
+    set_fact:
+      current_version: "{{ item.version }}"
+      current_boot_loc: "{{ item.name }}"
+    when: item.active == "yes"
+    with_items: "{{ sv.software_volumes }}"
+  
+  - name: Identify Hosts That Require Upgrade
+    set_fact:
+      wants_upgrade: True
+    when: not new_image is search(current_version)
+  
+  - name: Identify Hosts That Don't Require Upgrad
+    set_fact:
+      wants_upgrade: False
+    when: new_image is search(current_version)
+    
+  - name: Device Version Status
+    debug:
+      msg: 
+        - "Current version: {{ current_version }}"
+        - "Desired image: {{ new_image }}"
+        - "Upgrade needed: {{ wants_upgrade }}"
+  
+  - name: Wait To Continue
+    pause:
+      prompt: "Press a key to continue..."
+
+  - name: Only Upgrading Devices Which Need It
+    block:
+
+    - name: Check First Boot Location
+      set_fact:
+        dest_partition: 0
+        dest_partition_name: "{{ sv.software_volumes.0.name }}"
+      when: sv.software_volumes.0.active != "yes"
+
+    - name: Check Second Boot Location
+      set_fact:
+        dest_partition: 1
+        dest_partition_name: "{{ sv.software_volumes.1.name }}"
+      when: sv.software_volumes.1.active != "yes"
+    
+    - name: Print Target Boot Location
+      debug:
+        msg: 
+          - "Curret version: {{ current_version }} booting from {{ current_boot_loc }}"
+          - "New Image '{{ new_image }}' will be uploaded from '{{ new_image_dir }}'"
+          - "It will be installed to boot location '{{ dest_partition_name }}'"
+    
+    - name: Upload image
+      bigip_software_image:
+        provider: "{{ provider }}"
+        image: "{{ new_image_dir }}/{{ new_image }}"
+    
+    - name: Install Image
+      bigip_software_install:
+        provider: "{{ provider }}"
+        image: "{{ new_image }}"
+        state: installed
+        volume: "{{ dest_partition_name }}"
+
+    - name: Group 1 Activate Image (Will Cause Reboot)
+      bigip_software_install:
+        provider: "{{ provider }}"
+        image: "{{ new_image }}"
+        state: activated
+        volume: "{{ dest_partition_name }}"
+      when: reboot_group == 1
+      any_errors_fatal: true
+
+    - name: Group 2 Activate Image (Will Cause Reboot)
+      bigip_software_install:
+        provider: "{{ provider }}"
+        image: "{{ new_image }}"
+        state: activated
+        volume: "{{ dest_partition_name }}"
+      when: reboot_group == 2
+      any_errors_fatal: true
+
+    when: wants_upgrade

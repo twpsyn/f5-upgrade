@@ -53,24 +53,27 @@
   - name: Only Upgrading Devices Which Need It
     block:
 
+    - name: Check For Only One Boot Location
+      set_fact:
+        dest_boot_loc: "HD1.2"
+      when: (not dest_boot_loc is defined) and (sv.software_volumes|length == 1)
+    
     - name: Check First Boot Location
       set_fact:
-        dest_partition: 0
-        dest_partition_name: "{{ sv.software_volumes.0.name }}"
-      when: sv.software_volumes.0.active != "yes"
+        dest_boot_loc: "{{ sv.software_volumes.0.name }}"
+      when: (not dest_boot_loc is defined) and (sv.software_volumes.0.active != "yes")
 
     - name: Check Second Boot Location
       set_fact:
-        dest_partition: 1
-        dest_partition_name: "{{ sv.software_volumes.1.name }}"
-      when: sv.software_volumes.1.active != "yes"
+        dest_boot_loc: "{{ sv.software_volumes.1.name }}"
+      when: (not dest_boot_loc is defined) and (sv.software_volumes.1.active != "yes")
     
     - name: Print Target Boot Location
       debug:
         msg: 
           - "Curret version: {{ current_version }} booting from {{ current_boot_loc }}"
           - "New Image '{{ new_image }}' will be uploaded from '{{ new_image_dir }}'"
-          - "It will be installed to boot location '{{ dest_partition_name }}'"
+          - "It will be installed to boot location '{{ dest_boot_loc }}'"
     
     - name: Upload image
       bigip_software_image:
@@ -82,14 +85,14 @@
         provider: "{{ provider }}"
         image: "{{ new_image }}"
         state: installed
-        volume: "{{ dest_partition_name }}"
+        volume: "{{ dest_boot_loc }}"
 
     - name: Group 1 Activate Image (Will Cause Reboot)
       bigip_software_install:
         provider: "{{ provider }}"
         image: "{{ new_image }}"
         state: activated
-        volume: "{{ dest_partition_name }}"
+        volume: "{{ dest_boot_loc }}"
       when: reboot_group == 1
       any_errors_fatal: true
 
@@ -98,7 +101,7 @@
         provider: "{{ provider }}"
         image: "{{ new_image }}"
         state: activated
-        volume: "{{ dest_partition_name }}"
+        volume: "{{ dest_boot_loc }}"
       when: reboot_group == 2
       any_errors_fatal: true
 

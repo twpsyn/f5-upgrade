@@ -12,9 +12,9 @@ See https://clouddocs.f5.com/products/orchestration/ansible/devel/usage/getting_
 
 Configuration (as provided) is done in the hosts.ini file.
 
-Each host needs a "reboot group" variable. This allows for clusters to be upgraded one at a time for a rolling upgrade.
+Each host needs a "reboot group" variable. This allows for clusters to be upgraded one at a time for a rolling upgrade. Set to 0 to disable the activation task, leaving the new image uploaded and installed ready for a manual activation and reboot.
 
-Adjust the image name and location to suit.
+Adjust the image name and location (on local system) to suit.
 
 ## Usage
 

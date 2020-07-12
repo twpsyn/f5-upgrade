@@ -16,6 +16,8 @@ Each host needs a "reboot group" variable. This allows for clusters to be upgrad
 
 Adjust the image name and location (on local system) to suit.
 
+If you want to install the new image to a definite boot location then define the variable `dest_boot_loc` to have the name of the desired boot location. If not defined then playbook will check the first two boot locations and pick the first one which is not currently active.
+
 ## Usage
 
 `ansible-playbook -i hosts.ini upgrade.yaml`

@@ -74,12 +74,12 @@
         - "It will be installed to boot location '{{ dest_boot_loc }}'"
     when: wants_upgrade
 
+  - name: Wait For Confirmation
+    pause:
+      prompt: "Press a key to continue..."
+
   - name: Only Upgrading Devices Which Need It
     block:
-
-    - name: Wait For Confirmation
-      pause:
-        prompt: "Press a key to continue..."
 
     - name: Save the running configuration of the BIG-IP
       bigip_config:

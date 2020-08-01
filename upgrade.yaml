@@ -69,7 +69,7 @@
   - name: Print Upgrade Information
     debug:
       msg: 
-        - "Curret version: {{ current_version }} booting from {{ current_boot_loc }}"
+        - "Current version: {{ current_version }} booting from {{ current_boot_loc }}"
         - "New Image '{{ new_image }}' will be uploaded from '{{ new_image_dir }}'"
         - "It will be installed to boot location '{{ dest_boot_loc }}'"
     when: wants_upgrade

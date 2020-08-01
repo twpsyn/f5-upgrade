@@ -78,42 +78,57 @@
     pause:
       prompt: "Press a key to continue..."
 
-  - name: Only Upgrading Devices Which Need It
-    block:
-
-    - name: Save the running configuration of the BIG-IP
-      bigip_config:
-        provider: "{{ provider }}"
-        save: yes
-    
-    - name: Upload image
-      bigip_software_image:
-        provider: "{{ provider }}"
-        image: "{{ new_image_dir }}/{{ new_image }}"
-    
-    - name: Install Image
-      bigip_software_install:
-        provider: "{{ provider }}"
-        image: "{{ new_image }}"
-        state: installed
-        volume: "{{ dest_boot_loc }}"
-
-    - name: Group 1 Activate Image (Will Cause Reboot)
-      bigip_software_install:
-        provider: "{{ provider }}"
-        image: "{{ new_image }}"
-        state: activated
-        volume: "{{ dest_boot_loc }}"
-      when: reboot_group == 1
-      any_errors_fatal: true
-
-    - name: Group 2 Activate Image (Will Cause Reboot)
-      bigip_software_install:
-        provider: "{{ provider }}"
-        image: "{{ new_image }}"
-        state: activated
-        volume: "{{ dest_boot_loc }}"
-      when: reboot_group == 2
-      any_errors_fatal: true
-
+  - name: Save the running configuration of the BIG-IP
+    bigip_config:
+      provider: "{{ provider }}"
+      save: yes
     when: wants_upgrade
+  
+  - name: Upload image
+    bigip_software_image:
+      provider: "{{ provider }}"
+      image: "{{ new_image_dir }}/{{ new_image }}"
+    when: wants_upgrade
+  
+  - name: Install Image
+    bigip_software_install:
+      provider: "{{ provider }}"
+      image: "{{ new_image }}"
+      state: installed
+      volume: "{{ dest_boot_loc }}"
+    when: wants_upgrade
+
+  - name: Group 1 Activate Image (Will Cause Reboot)
+    bigip_software_install:
+      provider: "{{ provider }}"
+      image: "{{ new_image }}"
+      state: activated
+      volume: "{{ dest_boot_loc }}"
+    when: (reboot_group == 1) and (wants_upgrade)
+    any_errors_fatal: true
+  
+  - name: Wait for all devices to be healthy before proceeding
+    bigip_command:
+      provider: "{{ provider }}"
+      match: "any"
+      warn: no
+      commands:
+        - bash -c "cat /var/prompt/ps1"
+      wait_for:
+        - result[0] contains Active
+        - result[0] contains Standby
+      retries: 12
+      interval: 10
+    register: result  
+    any_errors_fatal: true  
+
+  - name: Group 2 Activate Image (Will Cause Reboot)
+    bigip_software_install:
+      provider: "{{ provider }}"
+      image: "{{ new_image }}"
+      state: activated
+      volume: "{{ dest_boot_loc }}"
+    when: (reboot_group == 2) and (wants_upgrade)
+    any_errors_fatal: true
+
+    

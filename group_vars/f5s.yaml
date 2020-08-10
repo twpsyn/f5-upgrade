@@ -1,6 +1,6 @@
 ---
 provider:
-  server: "{{ ansible_host }}"
+  server: "{{ mgmt_ip | default(ansible_host) }}"
   user: "{{ f5_username }}"
   password: "{{ f5_password }}"
   server_port: "{{ f5_port | default('443') }}"

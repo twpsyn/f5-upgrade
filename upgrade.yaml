@@ -84,6 +84,11 @@
       save: yes
     when: wants_upgrade
 
+  - name: Ensure backup directory exists
+    file:
+      path: "{{ backup_loc }}/{{ inventory_hostname_short }}"
+      state: directory
+  
   - name: Get Pre-Upgrade UCS Backup
     bigip_ucs_fetch:
       create_on_missing: yes

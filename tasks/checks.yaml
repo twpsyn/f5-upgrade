@@ -1,0 +1,73 @@
+---
+- name: Get Information
+  bigip_device_info:
+    gather_subset:
+      - virtual-servers
+      - ltm-pools
+      - software-volumes
+    provider: "{{ provider }}"
+  register: f5_info
+
+- name: Pre-Upgrade Parse
+  set_fact:
+    startvirtstats: "{{ f5_info.virtual_servers
+      | items2dict(key_name='name', value_name='availability_status') }}"
+    startpoolstats: "{{ f5_info.ltm_pools
+      | items2dict(key_name='name', value_name='availability_status') }}"
+  when: stage == "pre"
+
+- name: Post Upgrade Checks
+  block:
+    - name: Post-Upgrade Parse
+      set_fact:
+        endvirtstats: "{{ f5_info.virtual_servers
+          | items2dict(key_name='name', value_name='availability_status') }}"
+        endpoolstats: "{{ f5_info.ltm_pools
+          | items2dict(key_name='name', value_name='availability_status') }}"
+
+    - name: Version Check
+      block:
+        - name: Get Software Version
+          set_fact:
+            end_version: "{{ item.version }}"
+          when: item.active == "yes"
+          with_items: "{{ f5_info.software_volumes }}"
+
+        - name: Check Version
+          assert:
+            that:
+              - end_version in new_image
+            fail_msg: "Upgrade appears to have failed - {{ end_version }} is not in {{ new_image }}"
+            success_msg: "{{ end_version }} is in {{ new_image }}"
+            quiet: yes
+          any_errors_fatal: true
+
+      when: check_ver
+
+    - name: Check Virtual Servers
+      assert:
+        that:
+          - item.value == endvirtstats[item.key]
+        fail_msg: "Virtual server '{{ item.key }}' state changed from '{{ item.value }}' to '{{ endvirtstats[item.key] }}'"
+        success_msg: "{{ item.key }} state unchanged"
+        quiet: yes
+      loop: "{{ startvirtstats|dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      any_errors_fatal: true
+      when: check_virts
+
+    - name: Check Pools
+      assert:
+        that:
+          - item.value == endpoolstats[item.key]
+        fail_msg: "Pool '{{ item.key }}' state changed from '{{ item.value }}' to '{{ endpoolstats[item.key] }}'"
+        success_msg: "{{ item.key }} state unchanged"
+        quiet: yes
+      loop: "{{ startpoolstats|dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      any_errors_fatal: true
+      when: check_pools
+
+  when: stage == "post"

@@ -1,4 +1,9 @@
 ---
+- name: Pause to give device time to settle and check pools etc.
+  wait_for:
+    timeout: 10
+  when: stage == "post"
+
 - name: Get Information
   bigip_device_info:
     gather_subset:
